@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+.env
+.venv
+venv/
+env/
+# Model artifacts (large files — store in GDrive/S3)
+models/*.pkl
+models/*.keras
+models/*.h5
+# Dataset
+data/
+*.zip
+# Jupyter
+.ipynb_checkpoints/
+# IDE
+.vscode/
+.idea/
+# OS
+.DS_Store
+Thumbs.db
