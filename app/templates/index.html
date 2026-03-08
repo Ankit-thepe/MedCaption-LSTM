@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MedCaption — Medical Image Captioning</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#1a202c;min-height:100vh}
+    header{background:linear-gradient(135deg,#1a365d,#2b6cb0);color:#fff;padding:24px 40px;
+           display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+    header h1{font-size:1.6rem;font-weight:700}
+    header p{font-size:.9rem;opacity:.8;margin-top:4px}
+    .badge{background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;
+           font-size:.75rem;font-weight:600;margin-top:8px;display:inline-block}
+    main{max-width:800px;margin:40px auto;padding:0 20px}
+    .card{background:#fff;border-radius:16px;padding:36px;box-shadow:0 4px 20px rgba(0,0,0,.08);margin-bottom:28px}
+    .card h2{font-size:1.1rem;font-weight:600;color:#2b6cb0;margin-bottom:20px;
+             border-bottom:2px solid #bee3f8;padding-bottom:10px}
+    .drop-zone{border:2px dashed #90cdf4;border-radius:12px;padding:48px 20px;
+               text-align:center;cursor:pointer;transition:all .2s;background:#ebf8ff}
+    .drop-zone:hover,.drop-zone.dragover{border-color:#3182ce;background:#dbeafe}
+    .drop-zone .icon{font-size:3rem;margin-bottom:12px}
+    .drop-zone p{color:#4a5568;font-size:.95rem}
+    .drop-zone small{color:#718096;font-size:.8rem}
+    #preview-wrap{display:none;text-align:center;margin-top:20px}
+    #preview{max-width:100%;max-height:350px;border-radius:10px;
+             box-shadow:0 4px 14px rgba(0,0,0,.12)}
+    #file-name{font-size:.85rem;color:#718096;margin-top:8px}
+    .btn{background:linear-gradient(135deg,#2b6cb0,#1a365d);color:#fff;border:none;
+         padding:14px 36px;border-radius:10px;font-size:1rem;font-weight:600;
+         cursor:pointer;width:100%;margin-top:20px;transition:opacity .2s}
+    .btn:hover{opacity:.9}
+    .btn:disabled{background:#a0aec0;cursor:not-allowed}
+    #result-card{display:none}
+    .caption-box{background:#f7fafc;border-left:4px solid #3182ce;border-radius:0 8px 8px 0;
+                 padding:18px 20px;font-size:1.05rem;color:#2d3748;line-height:1.7;
+                 font-style:italic}
+    .spinner{display:inline-block;width:22px;height:22px;border:3px solid #fff;
+             border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;
+             vertical-align:middle;margin-right:8px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .model-info{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+    .info-tile{background:#ebf8ff;border-radius:10px;padding:14px;text-align:center}
+    .info-tile .val{font-size:1.3rem;font-weight:700;color:#2b6cb0}
+    .info-tile .lbl{font-size:.75rem;color:#718096;margin-top:4px}
+    footer{text-align:center;padding:24px;color:#a0aec0;font-size:.85rem}
+  </style>
+</head>
+<body>
+  <header>
+    <div>🏥</div>
+    <div>
+      <h1>MedCaption-LSTM</h1>
+      <p>AI-powered radiology image captioning with VGG16 + LSTM</p>
+      <span class="badge">ROCO Dataset · TensorFlow · Flask</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>📤 Upload Radiology Image</h2>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="icon">🩻</div>
+        <p><strong>Click to upload</strong> or drag & drop</p>
+        <small>Supports JPG, PNG — X-rays, MRI, CT, PET scans</small>
+      </div>
+      <input type="file" id="file-input" accept="image/*" style="display:none"/>
+      <div id="preview-wrap">
+        <img id="preview" alt="Preview"/>
+        <p id="file-name"></p>
+      </div>
+      <button class="btn" id="gen-btn" disabled onclick="generateCaption()">
+        ✨ Generate Caption
+      </button>
+    </div>
+
+    <div class="card" id="result-card">
+      <h2>📋 Generated Caption</h2>
+      <div class="caption-box" id="caption-text"></div>
+    </div>
+
+    <div class="card">
+      <h2>ℹ️ Model Architecture</h2>
+      <div class="model-info">
+        <div class="info-tile"><div class="val">VGG16</div><div class="lbl">Image Encoder</div></div>
+        <div class="info-tile"><div class="val">LSTM</div><div class="lbl">Sequence Decoder</div></div>
+        <div class="info-tile"><div class="val">ROCO</div><div class="lbl">Training Dataset</div></div>
+        <div class="info-tile"><div class="val">4096</div><div class="lbl">Image Feature Dim</div></div>
+        <div class="info-tile"><div class="val">256</div><div class="lbl">Embedding / LSTM Dim</div></div>
+        <div class="info-tile"><div class="val">BLEU</div><div class="lbl">Evaluation Metric</div></div>
+      </div>
+    </div>
+  </main>
+
+  <footer>Built by <strong>Ankit Thepe</strong> · Medical Image Captioning with Deep Learning</footer>
+
+  <script>
+    const dropZone  = document.getElementById("drop-zone");
+    const fileInput = document.getElementById("file-input");
+    const genBtn    = document.getElementById("gen-btn");
+    const preview   = document.getElementById("preview");
+    const previewWrap = document.getElementById("preview-wrap");
+    const fileName  = document.getElementById("file-name");
+    let   selectedFile = null;
+
+    fileInput.addEventListener("change", e => handleFile(e.target.files[0]));
+    dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+    dropZone.addEventListener("dragleave", ()=> dropZone.classList.remove("dragover"));
+    dropZone.addEventListener("drop",      e => { e.preventDefault(); dropZone.classList.remove("dragover"); handleFile(e.dataTransfer.files[0]); });
+
+    function handleFile(file) {
+      if (!file) return;
+      selectedFile = file;
+      const url = URL.createObjectURL(file);
+      preview.src = url;
+      previewWrap.style.display = "block";
+      fileName.textContent = file.name;
+      genBtn.disabled = false;
+      document.getElementById("result-card").style.display = "none";
+    }
+
+    async function generateCaption() {
+      if (!selectedFile) return;
+      genBtn.disabled = true;
+      genBtn.innerHTML = '<span class="spinner"></span>Generating...';
+
+      const fd = new FormData();
+      fd.append("image", selectedFile);
+
+      try {
+        const resp = await fetch("/predict", { method: "POST", body: fd });
+        const data = await resp.json();
+        document.getElementById("caption-text").textContent = data.caption || data.error || "No caption returned.";
+        document.getElementById("result-card").style.display = "block";
+      } catch(err) {
+        document.getElementById("caption-text").textContent = "Error: " + err.message;
+        document.getElementById("result-card").style.display = "block";
+      }
+
+      genBtn.disabled = false;
+      genBtn.innerHTML = "✨ Generate Caption";
+    }
+  </script>
+</body>
+</html>
