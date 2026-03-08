@@ -1,0 +1,7 @@
+tensorflow>=2.10
+flask>=2.2
+numpy>=1.23
+Pillow>=9.0
+scikit-learn>=1.1
+nltk>=3.7
+tqdm>=4.64
